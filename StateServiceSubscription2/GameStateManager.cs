@@ -8,8 +8,9 @@ public class GameStateManager : MonoBehaviour
 {
     public static GameStateManager Instance;
 
-    private List<object> _servicesList = new List<object>();
+    private static Dictionary<Type, object> _mSerivces = new Dictionary<Type, object>();
     private Dictionary<Type, List<object>> _gameStatesDictionary = new Dictionary<Type, List<object>>();
+
 
     private void Awake()
     {
@@ -40,7 +41,14 @@ public class GameStateManager : MonoBehaviour
         }
     }
 
-    public void Add(object service)
+    public void AddService(object service)
+    {
+        _mSerivces.Add(service.GetType(), service);
+        print($"added {service.GetType()}");
+
+    }
+
+    public void Bind(object service)
     {
         Type serviceType = service.GetType();
         foreach(Type interfaceType in serviceType.GetInterfaces())
@@ -55,33 +63,24 @@ public class GameStateManager : MonoBehaviour
                     if (method.Name == "Bind")
                     {
                         Type[] genericTypes = method.GetGenericArguments();
-
+                        var typeObject = genericTypes[0];
+                        print($"Type Object is {typeObject.Name}");
 
                         if (_gameStatesDictionary.ContainsKey(targetGameState))
                         {
+                            print($"searching for {typeObject.Name}");
+                            print($"mServices has {_mSerivces.Count}");
+                            print($"Comparing {typeObject} with {service.GetType()}");
+                            print($"mServices[{typeObject.Name}] = {_mSerivces[service.GetType()]}  ");
+                            //var test = _mSerivces[typeObject];
+                            //print($"test is {test.Name}");
 
-
-                            object[] bindingParameters = { genericTypes };
+                            object[] bindingParameters = { _mSerivces[service.GetType()]};
                             method.Invoke(service, bindingParameters);
                         }                            
                     }
                 }
             }
-        }
-            
-        
+        }                    
     } 
-
-    private void Bind(object toBind)
-    {
-        Type toBindType = toBind.GetType();
-
-        foreach(Type interfaceType in toBindType.GetInterfaces())
-        {
-            //if(interfaceType.)
-        }
-    }
-
-
-
 }
