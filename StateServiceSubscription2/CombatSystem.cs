@@ -8,11 +8,6 @@ public class CombatSystem : MonoBehaviour, IStateListener<GameState_Play>
 
     void Start()
     {
-        //var methods = typeof(CombatSystem).GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public);
-        //print($"methods length is {methods.Length}");
-        //print($"method is {methods[0].Name}");
-        //print($"Is it generic = {methods[0].IsGenericMethod} ");
-        GameStateManager.Instance.AddService(this);
         GameStateManager.Instance.Bind(this);
     }
 
@@ -26,8 +21,11 @@ public class CombatSystem : MonoBehaviour, IStateListener<GameState_Play>
 
     }
 
-    public void Bind<CombatSystem>(CombatSystem system)
+    public void Bind(GameState_Play State)
     {
         print($"this has been invoked");
+        print($"State is {State.GetType()}");
+
     }
+
 }

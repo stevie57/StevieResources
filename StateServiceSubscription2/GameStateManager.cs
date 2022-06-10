@@ -8,7 +8,7 @@ public class GameStateManager : MonoBehaviour
 {
     public static GameStateManager Instance;
 
-    private static Dictionary<Type, object> _mSerivces = new Dictionary<Type, object>();
+    private Dictionary<string, Type> _states = new Dictionary<string, Type>();
     private Dictionary<Type, List<object>> _gameStatesDictionary = new Dictionary<Type, List<object>>();
 
 
@@ -35,6 +35,9 @@ public class GameStateManager : MonoBehaviour
         {
             if (state.IsClass && !state.IsAbstract && state.IsSubclassOf(typeof(AGameState)))
             {
+                if (!_states.ContainsKey(state.GetType().ToString()))
+                    _states[state.GetType().ToString()] = state; 
+
                 List<object> servicesList = new List<object>();
                 _gameStatesDictionary[state] = servicesList;
             }
@@ -43,9 +46,7 @@ public class GameStateManager : MonoBehaviour
 
     public void AddService(object service)
     {
-        _mSerivces.Add(service.GetType(), service);
-        print($"added {service.GetType()}");
-
+        //print($"added {service.GetType()}");
     }
 
     public void Bind(object service)
@@ -58,26 +59,22 @@ public class GameStateManager : MonoBehaviour
                 var argumentsArray =  interfaceType.GenericTypeArguments;
                 Type targetGameState = argumentsArray[0];
 
+                if (!_gameStatesDictionary.ContainsKey(targetGameState))
+                {
+                    print($"gameState {targetGameState} not found. ");
+                    return;
+                }
+                else
+                    print($"gamestate {targetGameState} is available in the gameStatesDictionary");
+
+
                 foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
                 {
                     if (method.Name == "Bind")
                     {
-                        Type[] genericTypes = method.GetGenericArguments();
-                        var typeObject = genericTypes[0];
-                        print($"Type Object is {typeObject.Name}");
-
-                        if (_gameStatesDictionary.ContainsKey(targetGameState))
-                        {
-                            print($"searching for {typeObject.Name}");
-                            print($"mServices has {_mSerivces.Count}");
-                            print($"Comparing {typeObject} with {service.GetType()}");
-                            print($"mServices[{typeObject.Name}] = {_mSerivces[service.GetType()]}  ");
-                            //var test = _mSerivces[typeObject];
-                            //print($"test is {test.Name}");
-
-                            object[] bindingParameters = { _mSerivces[service.GetType()]};
-                            method.Invoke(service, bindingParameters);
-                        }                            
+                        print($"Target game state is {targetGameState}");
+                        object[] bindingParameters = { targetGameState  }; 
+                        method.Invoke(service, bindingParameters);                                                    
                     }
                 }
             }
