@@ -5,27 +5,14 @@ using UnityEngine;
 
 public class CombatSystem : MonoBehaviour, IStateListener<GameState_Play>
 {
-
-    void Start()
+    private void Start()
     {
-        GameStateManager.Instance.Bind(this);
+        GameStateManager.Instance.Bind(this);    
     }
 
-    private void SetUp()
+    public void Setup(GameState_Play gameState)
     {
-
-    }
-
-    private void TearDown()
-    {
-
-    }
-
-    public void Bind(GameState_Play State)
-    {
-        print($"this has been invoked");
-        print($"State is {State.GetType()}");
-
+        print($"Setup has been called");
     }
 
 }

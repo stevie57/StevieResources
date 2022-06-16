@@ -4,5 +4,8 @@ using UnityEngine;
 
 public class GameState_Play : AGameState
 {
+    public GameState_Play()
+    {
 
+    }
 }

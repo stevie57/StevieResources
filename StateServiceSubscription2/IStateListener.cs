@@ -4,5 +4,5 @@ using UnityEngine;
 
 public interface IStateListener<T> where T : AGameState
 {
-    public void Bind( T State);
+    public void Setup(T gameState);
 }

@@ -8,9 +8,8 @@ public class GameStateManager : MonoBehaviour
 {
     public static GameStateManager Instance;
 
-    private Dictionary<string, Type> _states = new Dictionary<string, Type>();
-    private Dictionary<Type, List<object>> _gameStatesDictionary = new Dictionary<Type, List<object>>();
-
+    private Dictionary<Type, AGameState> _statesInstanceDictionary = new Dictionary<Type, AGameState>(); 
+    private Dictionary<Type, List<object>> _gameStatesServicesDictionary = new Dictionary<Type, List<object>>();
 
     private void Awake()
     {
@@ -22,11 +21,6 @@ public class GameStateManager : MonoBehaviour
         CreateStateDictionary();
     }
 
-    private void Start()
-    {
-
-    }
-
     private void CreateStateDictionary()
     {
         var gameStates = Assembly.GetAssembly(typeof(AGameState)).GetTypes();
@@ -35,31 +29,31 @@ public class GameStateManager : MonoBehaviour
         {
             if (state.IsClass && !state.IsAbstract && state.IsSubclassOf(typeof(AGameState)))
             {
-                if (!_states.ContainsKey(state.GetType().ToString()))
-                    _states[state.GetType().ToString()] = state; 
-
                 List<object> servicesList = new List<object>();
-                _gameStatesDictionary[state] = servicesList;
+                _gameStatesServicesDictionary[state] = servicesList;
+
+                AGameState stateInstance = Activator.CreateInstance(state) as AGameState;
+                _statesInstanceDictionary[state] = stateInstance;
             }
         }
     }
 
-    public void AddService(object service)
-    {
-        //print($"added {service.GetType()}");
-    }
-
     public void Bind(object service)
     {
+        AddService(service);
+    }
+
+    private void AddService(object service)
+    {
         Type serviceType = service.GetType();
-        foreach(Type interfaceType in serviceType.GetInterfaces())
+        foreach (Type interfaceType in serviceType.GetInterfaces())
         {
-            if(interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IStateListener<>))
+            if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IStateListener<>))
             {
-                var argumentsArray =  interfaceType.GenericTypeArguments;
+                var argumentsArray = interfaceType.GenericTypeArguments;
                 Type targetGameState = argumentsArray[0];
 
-                if (!_gameStatesDictionary.ContainsKey(targetGameState))
+                if (!_gameStatesServicesDictionary.ContainsKey(targetGameState))
                 {
                     print($"gameState {targetGameState} not found. ");
                     return;
@@ -67,17 +61,20 @@ public class GameStateManager : MonoBehaviour
                 else
                     print($"gamestate {targetGameState} is available in the gameStatesDictionary");
 
+                _gameStatesServicesDictionary[targetGameState].Add(service);
+
 
                 foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
                 {
-                    if (method.Name == "Bind")
+                    if (method.Name == "Setup")
                     {
                         print($"Target game state is {targetGameState}");
-                        object[] bindingParameters = { targetGameState  }; 
-                        method.Invoke(service, bindingParameters);                                                    
+
+                        object[] bindingParameters = { _statesInstanceDictionary[targetGameState] };
+                        method.Invoke(service, bindingParameters);
                     }
                 }
             }
-        }                    
-    } 
+        }
+    }
 }
