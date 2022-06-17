@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class CombatSystem : MonoBehaviour, IStateListener<GameState_Play>
+public class CombatSystem : MonoBehaviour, IStateListener<GameState_Play>, IStateListener<GameState_Setup>
 {
     private void Start()
     {
@@ -12,7 +12,11 @@ public class CombatSystem : MonoBehaviour, IStateListener<GameState_Play>
 
     public void Setup(GameState_Play gameState)
     {
-        print($"Setup has been called");
+        print($"CombatSystem is setting up {gameState.ToString()}");
     }
 
+    public void Setup(GameState_Setup gameState)
+    {
+        print($"CombatSystem is setting up {gameState.ToString()}");
+    }
 }

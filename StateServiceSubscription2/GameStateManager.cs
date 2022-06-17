@@ -11,6 +11,8 @@ public class GameStateManager : MonoBehaviour
     private Dictionary<Type, AGameState> _statesInstanceDictionary = new Dictionary<Type, AGameState>(); 
     private Dictionary<Type, List<object>> _gameStatesServicesDictionary = new Dictionary<Type, List<object>>();
 
+    AGameState _currentState;
+
     private void Awake()
     {
         if (Instance == null)
@@ -19,6 +21,11 @@ public class GameStateManager : MonoBehaviour
             Destroy(this);
 
         CreateStateDictionary();
+    }
+
+    private void Start()
+    {
+        _currentState = _statesInstanceDictionary[typeof(GameState_Setup)];
     }
 
     private void CreateStateDictionary()
@@ -58,23 +65,104 @@ public class GameStateManager : MonoBehaviour
                     print($"gameState {targetGameState} not found. ");
                     return;
                 }
-                else
-                    print($"gamestate {targetGameState} is available in the gameStatesDictionary");
 
                 _gameStatesServicesDictionary[targetGameState].Add(service);
+                print($"binding {service.ToString()} to {targetGameState.ToString()}");
 
+                //foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
+                //{
+                //    if (method.Name == "Setup")
+                //    {
+                //        print($"Target game state is {targetGameState}");
 
-                foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
+                //        object[] bindingParameters = { _statesInstanceDictionary[targetGameState] };
+                //        method.Invoke(service, bindingParameters);
+                //    }
+                //}
+            }
+        }
+    }
+
+    private void TransitionToState(AGameState newState)
+    {
+        if(_currentState != newState)
+        {
+            List<object> ServicesToTearDown = _gameStatesServicesDictionary[_currentState.GetType()];
+            if(ServicesToTearDown != null)
+            {
+                foreach(object service in ServicesToTearDown)
                 {
-                    if (method.Name == "Setup")
-                    {
-                        print($"Target game state is {targetGameState}");
+                    //TearDown(service);
+                }
+            }
 
-                        object[] bindingParameters = { _statesInstanceDictionary[targetGameState] };
-                        method.Invoke(service, bindingParameters);
+            List<object> ServicesToSetUp = _gameStatesServicesDictionary[newState.GetType()];
+            if(ServicesToSetUp != null)
+            {
+                foreach(object service in ServicesToSetUp)
+                {
+                    SetupService(service, newState);
+                }
+            }
+        }
+    }
+
+    private void SetupService(object service, AGameState newState)
+    {
+        Type serviceType = service.GetType();
+        foreach (Type interfaceType in serviceType.GetInterfaces())
+        {
+            if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IStateListener<>))
+            {
+                var argumentsArray = interfaceType.GenericTypeArguments;
+                Type interfaceGameState = argumentsArray[0];  // interface target game state 
+
+                if (newState.GetType() == interfaceGameState)
+                {
+                    foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
+                    {
+                        if (method.Name == "Setup")
+                        {
+                            var methodParamaters = method.GetParameters();
+                            string stateName = interfaceGameState.ToString();
+
+                            foreach (ParameterInfo param in methodParamaters)
+                            {
+                                if (param.ToString().Contains(stateName))
+                                {
+                                    object[] bindingParameters = { _statesInstanceDictionary[interfaceGameState] };
+                                    method.Invoke(service, bindingParameters);
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+
+        _currentState = newState;
+    }
+
+    [ContextMenu("Transition To Play")]
+    public void TransitionToPlayState()
+    {
+        print($"Game state manager transition to Play State");
+        AGameState playState = _statesInstanceDictionary[typeof(GameState_Play)];
+        TransitionToState(playState);
+    }
+
+
+    [ContextMenu("Transition To Setup")]
+    public void TransitionToSetUpState()
+    {
+        print($"Game state manager transition to Setup State");
+        AGameState playState = _statesInstanceDictionary[typeof(GameState_Setup)];
+        TransitionToState(playState);
+    }
+
+    private void TearDown(object service)
+    {
+
     }
 }
