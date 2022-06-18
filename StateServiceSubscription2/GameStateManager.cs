@@ -19,12 +19,7 @@ public class GameStateManager : MonoBehaviour
             Instance = this;
         else
             Destroy(this);
-
         CreateStateDictionary();
-    }
-
-    private void Start()
-    {
         _currentState = _statesInstanceDictionary[typeof(GameState_Setup)];
     }
 
@@ -48,6 +43,7 @@ public class GameStateManager : MonoBehaviour
     public void Bind(object service)
     {
         AddService(service);
+        SetupService(service, _currentState);
     }
 
     private void AddService(object service)
@@ -68,17 +64,6 @@ public class GameStateManager : MonoBehaviour
 
                 _gameStatesServicesDictionary[targetGameState].Add(service);
                 print($"binding {service.ToString()} to {targetGameState.ToString()}");
-
-                //foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
-                //{
-                //    if (method.Name == "Setup")
-                //    {
-                //        print($"Target game state is {targetGameState}");
-
-                //        object[] bindingParameters = { _statesInstanceDictionary[targetGameState] };
-                //        method.Invoke(service, bindingParameters);
-                //    }
-                //}
             }
         }
     }
@@ -92,7 +77,7 @@ public class GameStateManager : MonoBehaviour
             {
                 foreach(object service in ServicesToTearDown)
                 {
-                    //TearDown(service);
+                    TearDown(service);
                 }
             }
 
@@ -163,6 +148,36 @@ public class GameStateManager : MonoBehaviour
 
     private void TearDown(object service)
     {
+        Type serviceType = service.GetType();
+        foreach (Type interfaceType in serviceType.GetInterfaces())
+        {
+            if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IStateListener<>))
+            {
+                var argumentsArray = interfaceType.GenericTypeArguments;
+                Type interfaceGameState = argumentsArray[0];  // interface target game state 
 
+                if (_currentState.GetType() == interfaceGameState)
+                {
+                    foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
+                    {
+                        if (method.Name == "TearDown")
+                        {
+                            var methodParamaters = method.GetParameters();
+                            string stateName = interfaceGameState.ToString();
+
+                            foreach (ParameterInfo param in methodParamaters)
+                            {
+                                if (param.ToString().Contains(stateName))
+                                {
+                                    object[] bindingParameters = { _statesInstanceDictionary[interfaceGameState] };
+                                    method.Invoke(service, bindingParameters);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
