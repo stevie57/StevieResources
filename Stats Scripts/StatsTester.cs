@@ -6,6 +6,9 @@ public class StatsTester : MonoBehaviour
     [SerializeField]
     private string _statType;
     [SerializeField]
+    private PlayerStatType _playerStatType;
+
+    [SerializeField]
     private int _value;
 
     private void Awake()

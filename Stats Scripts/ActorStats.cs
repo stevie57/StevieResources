@@ -7,7 +7,7 @@ public class ActorStats : ScriptableObject
 {
     public List<StatSO> statsList = new List<StatSO>();
 
-    public Stats CreateStats()
+    public Stats CreateStats() // creates stats block based on StatSO list
     {
         Stats actorStats = new Stats();
 

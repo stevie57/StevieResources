@@ -42,12 +42,11 @@ public class Stats : IEnumerable<Stat>
             }
         }
     }
-
     private Stat CheckForStat(string name)
     {
         for (int i = 0; i < _stats.Count; i++)
         {
-                if (_stats[i].Name == name)
+            if (_stats[i].Name == name)
             {
                 return _stats[i];
             }
@@ -55,6 +54,5 @@ public class Stats : IEnumerable<Stat>
 
         return null;
     }
-
     public void Add(string name, int max, int value) => _stats.Add(new Stat { Name = name, Max = max, Value = value });
 }
