@@ -60,6 +60,7 @@ public class DialogueGraph : EditorWindow
         if (!string.IsNullOrEmpty(_fileName))
         {
             var saveUtility = GraphSaveUtility.GetInstance(_graphView);
+
             if (save)
                 saveUtility.SaveGraph(_fileName);
             else
