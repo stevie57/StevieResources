@@ -1,7 +1,11 @@
-﻿[System.Serializable]
-public class NodeLinkData
+﻿
+namespace DialogueSystem
 {
-    public string BaseNodeGUID;
-    public string PortName;
-    public string TargetNodeGUID;
+    [System.Serializable]
+    public class NodeLinkData
+    {
+        public string BaseNodeGUID;
+        public string PortName;
+        public string TargetNodeGUID;
+    }
 }

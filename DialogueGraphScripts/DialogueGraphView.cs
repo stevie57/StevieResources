@@ -12,234 +12,238 @@ using UnityEngine.Playables;
 
 
 // https://www.youtube.com/watch?v=7KHGH0fPL84 @ 17:22
-public class DialogueGraphView : GraphView
+
+namespace DialogueSystem
 {
-    public readonly Vector2 defaultNodeSize = new Vector2(150f, 200f);
-
-    public Blackboard BlackBoard;
-    public List<ExposedProperty> ExposedProperties = new List<ExposedProperty>();
-    private NodeSearchWindow _searchWindow;
-
-
-    public DialogueGraphView(EditorWindow editorWindow)
-    {        
-        styleSheets.Add(Resources.Load<StyleSheet>("DialogueGraph")); 
-        SetupZoom(ContentZoomer.DefaultMinScale, ContentZoomer.DefaultMaxScale);
-
-        this.AddManipulator(new ContentDragger());
-        this.AddManipulator(new SelectionDragger());
-        this.AddManipulator(new RectangleSelector());
-
-        var grid = new GridBackground();
-        Insert(0, grid);
-        grid.StretchToParentSize();
-
-        AddElement(GenerateEntryPointNode());
-        AddSearchWindow(editorWindow);
-    }
-
-    public void AddPropertyToBlackboard(ExposedProperty exposedProperty)
+    public class DialogueGraphView : GraphView
     {
-        var localPropertyName = exposedProperty.PropertyName;
-        var localPropertyValue = exposedProperty.PropertyValue;
+        public readonly Vector2 defaultNodeSize = new Vector2(150f, 200f);
 
-        while(ExposedProperties.Any(x => x.PropertyName == localPropertyName))
+        public Blackboard BlackBoard;
+        public List<ExposedProperty> ExposedProperties = new List<ExposedProperty>();
+        private NodeSearchWindow _searchWindow;
+
+
+        public DialogueGraphView(EditorWindow editorWindow)
         {
-            localPropertyName =$"{localPropertyName}(1)"; 
+            styleSheets.Add(Resources.Load<StyleSheet>("DialogueGraph"));
+            SetupZoom(ContentZoomer.DefaultMinScale, ContentZoomer.DefaultMaxScale);
+
+            this.AddManipulator(new ContentDragger());
+            this.AddManipulator(new SelectionDragger());
+            this.AddManipulator(new RectangleSelector());
+
+            var grid = new GridBackground();
+            Insert(0, grid);
+            grid.StretchToParentSize();
+
+            AddElement(GenerateEntryPointNode());
+            AddSearchWindow(editorWindow);
         }
 
-        var property = new ExposedProperty();
-        property.PropertyName = localPropertyName;
-        property.PropertyValue = localPropertyValue;
-        ExposedProperties.Add(property);
-
-        var container = new VisualElement();
-        var blackboardField = new BlackboardField { text = exposedProperty.PropertyName, typeText = "string Property" };
-        container.Add(blackboardField);
-
-        var propertyValueTextField = new TextField("Value")
+        public void AddPropertyToBlackboard(ExposedProperty exposedProperty)
         {
-            value = localPropertyValue
-        };
+            var localPropertyName = exposedProperty.PropertyName;
+            var localPropertyValue = exposedProperty.PropertyValue;
 
-        propertyValueTextField.RegisterValueChangedCallback(evt =>
-        {
-            var changingPropertyIndex = ExposedProperties.FindIndex(x => x.PropertyName == property.PropertyName);
-            ExposedProperties[changingPropertyIndex].PropertyValue = evt.newValue;
-        });
-
-        var blackboardValueRow = new BlackboardRow(blackboardField, propertyValueTextField);
-        container.Add(blackboardValueRow);
-
-        BlackBoard.Add(container);
-    }
-
-    public void ClearBlackBoardandExposedProperty()
-    {
-        ExposedProperties.Clear();
-        BlackBoard.Clear();
-    }
-    private void AddSearchWindow(EditorWindow editorWindow)
-    {
-        _searchWindow = ScriptableObject.CreateInstance<NodeSearchWindow>();
-        _searchWindow.Init(this, editorWindow);
-        nodeCreationRequest = context => 
-            SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), _searchWindow);
-    }
-
-    public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
-    {
-        var compatiblePorts = new List<Port>();
-        ports.ForEach(port =>
-        {
-            if(startPort != port && startPort.node != port.node)
+            while (ExposedProperties.Any(x => x.PropertyName == localPropertyName))
             {
-                compatiblePorts.Add(port);
-            }    
-        });
-        return compatiblePorts;
-    }
+                localPropertyName = $"{localPropertyName}(1)";
+            }
 
-    private DialogueNode GenerateEntryPointNode()
-    {
-        var dialogueNode = new DialogueNode
+            var property = new ExposedProperty();
+            property.PropertyName = localPropertyName;
+            property.PropertyValue = localPropertyValue;
+            ExposedProperties.Add(property);
+
+            var container = new VisualElement();
+            var blackboardField = new BlackboardField { text = exposedProperty.PropertyName, typeText = "string Property" };
+            container.Add(blackboardField);
+
+            var propertyValueTextField = new TextField("Value")
+            {
+                value = localPropertyValue
+            };
+
+            propertyValueTextField.RegisterValueChangedCallback(evt =>
+            {
+                var changingPropertyIndex = ExposedProperties.FindIndex(x => x.PropertyName == property.PropertyName);
+                ExposedProperties[changingPropertyIndex].PropertyValue = evt.newValue;
+            });
+
+            var blackboardValueRow = new BlackboardRow(blackboardField, propertyValueTextField);
+            container.Add(blackboardValueRow);
+
+            BlackBoard.Add(container);
+        }
+
+        public void ClearBlackBoardandExposedProperty()
         {
-            title = "START",
-            GUID = Guid.NewGuid().ToString(),
-            DialogueTitle = "ENTRYPOINT",
-            EntryPoint = true
-        };
-
-        var generatedPort = GeneratePort(dialogueNode, Direction.Output);
-        generatedPort.portName = "Next";
-        dialogueNode.outputContainer.Add(generatedPort);
-
-        dialogueNode.capabilities &= ~Capabilities.Movable;
-        dialogueNode.capabilities &= ~Capabilities.Deletable;
-
-        dialogueNode.RefreshExpandedState();
-        dialogueNode.RefreshPorts();
-        dialogueNode.SetPosition(new Rect(100, 200, 100, 150));
-        
-        return dialogueNode;
-    }
-
-    public void AddChoicePort(DialogueNode dialogueNode, string overridenPortName = "")
-    {
-        var generatedPort = GeneratePort(dialogueNode, Direction.Output);
-
-        // remove labels from ports
-        var oldLabel = generatedPort.contentContainer.Q<Label>("type");
-        generatedPort.Remove(oldLabel);
-
-        var outputPortCount = dialogueNode.outputContainer.Query("connector").ToList().Count;
-
-        var choicePortName = string.IsNullOrEmpty(overridenPortName) ? 
-            $"Choice {outputPortCount + 1}" : overridenPortName;
-
-        var textField = new TextField()
+            ExposedProperties.Clear();
+            BlackBoard.Clear();
+        }
+        private void AddSearchWindow(EditorWindow editorWindow)
         {
-            name = string.Empty,
-            value = choicePortName
-        };
+            _searchWindow = ScriptableObject.CreateInstance<NodeSearchWindow>();
+            _searchWindow.Init(this, editorWindow);
+            nodeCreationRequest = context =>
+                SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), _searchWindow);
+        }
 
-        textField.RegisterValueChangedCallback(evt => generatedPort.portName = evt.newValue);
-        generatedPort.contentContainer.Add(new Label(""));
-        generatedPort.contentContainer.Add(textField);
-
-        var deleteButton = new Button(() => RemovePort(dialogueNode, generatedPort))
+        public override List<Port> GetCompatiblePorts(Port startPort, NodeAdapter nodeAdapter)
         {
-            text = "X"
-        };
-        generatedPort.contentContainer.Add(deleteButton);
+            var compatiblePorts = new List<Port>();
+            ports.ForEach(port =>
+            {
+                if (startPort != port && startPort.node != port.node)
+                {
+                    compatiblePorts.Add(port);
+                }
+            });
+            return compatiblePorts;
+        }
 
-        generatedPort.portName = choicePortName;
-        dialogueNode.outputContainer.Add(generatedPort);
-        dialogueNode.RefreshPorts();
-        dialogueNode.RefreshExpandedState();
-    }
-
-    private void RemovePort(DialogueNode dialogueNode, Port generatedPort)
-    {
-        var targetEdge = edges.ToList().Where(x =>
-        x.output.portName == generatedPort.portName && x.output.node == generatedPort.node);
-
-        if (!targetEdge.Any()) return;
-
-        var edge = targetEdge.First();
-        edge.input.Disconnect(edge);
-        RemoveElement(targetEdge.First());
-
-        dialogueNode.outputContainer.Remove(generatedPort);
-        dialogueNode.RefreshPorts();
-        dialogueNode.RefreshExpandedState();
-    }
-
-    public void CreateNode(string nodeName, Vector2 mousePosition) 
-    {
-        AddElement(CreateDialogueNode(nodeName, mousePosition));
-    }
-
-    public DialogueNode CreateDialogueNode(string nodeName, Vector2 position)
-    {
-        var dialogueNode = new DialogueNode()
+        private DialogueNode GenerateEntryPointNode()
         {
-            title = nodeName,
-            name = nodeName,
-            DialogueTitle = nodeName,
-            GUID = Guid.NewGuid().ToString(),
-        };
+            var dialogueNode = new DialogueNode
+            {
+                title = "START",
+                GUID = Guid.NewGuid().ToString(),
+                DialogueTitle = "ENTRYPOINT",
+                EntryPoint = true
+            };
 
-        var inputPort = GeneratePort(dialogueNode, Direction.Input, Port.Capacity.Multi);
-        inputPort.portName = "Input";
-        dialogueNode.inputContainer.Add(inputPort);
+            var generatedPort = GeneratePort(dialogueNode, Direction.Output);
+            generatedPort.portName = "Next";
+            dialogueNode.outputContainer.Add(generatedPort);
 
-        dialogueNode.styleSheets.Add(Resources.Load<StyleSheet>("Node"));
+            dialogueNode.capabilities &= ~Capabilities.Movable;
+            dialogueNode.capabilities &= ~Capabilities.Deletable;
 
-        //choices
-        dialogueNode.outputContainer.Add(new Label("Player Choices") { });
+            dialogueNode.RefreshExpandedState();
+            dialogueNode.RefreshPorts();
+            dialogueNode.SetPosition(new Rect(100, 200, 100, 150));
 
+            return dialogueNode;
+        }
 
-        var button = new Button(() => { AddChoicePort(dialogueNode); });
-        button.text = "New Choice";
-        dialogueNode.titleContainer.Add(button);
-
-        // bottom text of a dialogue node which also sets the title
-        var textField = new TextField(string.Empty) 
+        public void AddChoicePort(DialogueNode dialogueNode, string overridenPortName = "")
         {
-            label = "Dialogue Node Title"
-        };
-        textField.RegisterValueChangedCallback(evt =>
+            var generatedPort = GeneratePort(dialogueNode, Direction.Output);
+
+            // remove labels from ports
+            var oldLabel = generatedPort.contentContainer.Q<Label>("type");
+            generatedPort.Remove(oldLabel);
+
+            var outputPortCount = dialogueNode.outputContainer.Query("connector").ToList().Count;
+
+            var choicePortName = string.IsNullOrEmpty(overridenPortName) ?
+                $"Choice {outputPortCount + 1}" : overridenPortName;
+
+            var textField = new TextField()
+            {
+                name = string.Empty,
+                value = choicePortName
+            };
+
+            textField.RegisterValueChangedCallback(evt => generatedPort.portName = evt.newValue);
+            generatedPort.contentContainer.Add(new Label(""));
+            generatedPort.contentContainer.Add(textField);
+
+            var deleteButton = new Button(() => RemovePort(dialogueNode, generatedPort))
+            {
+                text = "X"
+            };
+            generatedPort.contentContainer.Add(deleteButton);
+
+            generatedPort.portName = choicePortName;
+            dialogueNode.outputContainer.Add(generatedPort);
+            dialogueNode.RefreshPorts();
+            dialogueNode.RefreshExpandedState();
+        }
+
+        private void RemovePort(DialogueNode dialogueNode, Port generatedPort)
         {
-            dialogueNode.DialogueTitle = evt.newValue;
-            dialogueNode.title = evt.newValue;
-        });
-        textField.SetValueWithoutNotify(dialogueNode.title);
-        dialogueNode.mainContainer.Add(textField);
+            var targetEdge = edges.ToList().Where(x =>
+            x.output.portName == generatedPort.portName && x.output.node == generatedPort.node);
 
+            if (!targetEdge.Any()) return;
 
-        dialogueNode.TimelineObjectField = new ObjectField()
+            var edge = targetEdge.First();
+            edge.input.Disconnect(edge);
+            RemoveElement(targetEdge.First());
+
+            dialogueNode.outputContainer.Remove(generatedPort);
+            dialogueNode.RefreshPorts();
+            dialogueNode.RefreshExpandedState();
+        }
+
+        public void CreateNode(string nodeName, Vector2 mousePosition)
         {
-            label = "Timeline Asset",
-            objectType = typeof(PlayableAsset),
-            allowSceneObjects = false,
-        };
-        dialogueNode.TimelineObjectField.RegisterValueChangedCallback(evt => 
+            AddElement(CreateDialogueNode(nodeName, mousePosition));
+        }
+
+        public DialogueNode CreateDialogueNode(string nodeName, Vector2 position)
         {
-            dialogueNode.TimelineAsset = (PlayableAsset) evt.newValue;
-        });    
-        
-        dialogueNode.mainContainer.Add(dialogueNode.TimelineObjectField);
+            var dialogueNode = new DialogueNode()
+            {
+                title = nodeName,
+                name = nodeName,
+                DialogueTitle = nodeName,
+                GUID = Guid.NewGuid().ToString(),
+            };
 
-        dialogueNode.RefreshExpandedState();
-        dialogueNode.RefreshPorts();
-        dialogueNode.SetPosition(new Rect(position, defaultNodeSize));
+            var inputPort = GeneratePort(dialogueNode, Direction.Input, Port.Capacity.Multi);
+            inputPort.portName = "Input";
+            dialogueNode.inputContainer.Add(inputPort);
 
-        return dialogueNode;
-    }
+            dialogueNode.styleSheets.Add(Resources.Load<StyleSheet>("Node"));
 
-    private Port GeneratePort(DialogueNode node, Direction portDirection, Port.Capacity capacity = Port.Capacity.Single)
-    {
-        return node.InstantiatePort(Orientation.Horizontal, portDirection, capacity, typeof(float)); // Arbitraty type
+            //choices
+            dialogueNode.outputContainer.Add(new Label("Player Choices") { });
+
+
+            var button = new Button(() => { AddChoicePort(dialogueNode); });
+            button.text = "New Choice";
+            dialogueNode.titleContainer.Add(button);
+
+            // bottom text of a dialogue node which also sets the title
+            var textField = new TextField(string.Empty)
+            {
+                label = "Dialogue Node Title"
+            };
+            textField.RegisterValueChangedCallback(evt =>
+            {
+                dialogueNode.DialogueTitle = evt.newValue;
+                dialogueNode.title = evt.newValue;
+            });
+            textField.SetValueWithoutNotify(dialogueNode.title);
+            dialogueNode.mainContainer.Add(textField);
+
+
+            dialogueNode.TimelineObjectField = new ObjectField()
+            {
+                label = "Timeline Asset",
+                objectType = typeof(PlayableAsset),
+                allowSceneObjects = false,
+            };
+            dialogueNode.TimelineObjectField.RegisterValueChangedCallback(evt =>
+            {
+                dialogueNode.TimelineAsset = (PlayableAsset)evt.newValue;
+            });
+
+            dialogueNode.mainContainer.Add(dialogueNode.TimelineObjectField);
+
+            dialogueNode.RefreshExpandedState();
+            dialogueNode.RefreshPorts();
+            dialogueNode.SetPosition(new Rect(position, defaultNodeSize));
+
+            return dialogueNode;
+        }
+
+        private Port GeneratePort(DialogueNode node, Direction portDirection, Port.Capacity capacity = Port.Capacity.Single)
+        {
+            return node.InstantiatePort(Orientation.Horizontal, portDirection, capacity, typeof(float)); // Arbitraty type
+        }
     }
 }
