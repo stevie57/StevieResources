@@ -23,50 +23,10 @@ public class DialogueGraph : EditorWindow
     private void OnEnable()
     {
         ConstructGraphView();
-        GenerateToolBar();
         GenerateMiniMap();
+        GenerateToolBar();
         //GenerateBlackBoard();
     }
-
-    private void GenerateBlackBoard()
-    {
-        var blackBoard = new Blackboard(_graphView);
-        blackBoard.Add(new BlackboardSection { title = "Exposed Properties" });
-        
-        blackBoard.addItemRequested = _blackboard =>
-        {
-            _graphView.AddPropertyToBlackboard(new ExposedProperty());
-        };
-        blackBoard.editTextRequested = (blackboard1, element, newValue) =>
-        {
-            var oldPropertyName = ((BlackboardField)element).text;
-            if (_graphView.ExposedProperties.Any(x => x.PropertyName == newValue))
-            {
-                EditorUtility.DisplayDialog("Error", "This property name already exist. Choose another one", "OK");
-            }
-
-            var propertyIndex = _graphView.ExposedProperties.FindIndex(x => x.PropertyName == oldPropertyName);
-            _graphView.ExposedProperties[propertyIndex].PropertyName = newValue;
-            ((BlackboardField)element).text = newValue; 
-        };
-        
-        blackBoard.SetPosition(new Rect(10, 30, 200, 300));
-        _graphView.Add(blackBoard);
-        _graphView.BlackBoard = blackBoard;
-    }
-
-    private void GenerateMiniMap()
-    {
-        var miniMap = new MiniMap { };
-        miniMap.IsSelectable();
-        miniMap.IsMovable();
-        // 10 px offset from left side
-        var cords = _graphView.contentViewContainer.WorldToLocal(new Vector2(this.maxSize.x - 2800, 30));
-        Debug.Log($"maxsize x is {this.maxSize.x}");
-        miniMap.SetPosition(new Rect(0, cords.y, 200, 140));
-        _graphView.Add(miniMap);
-    }
-
     private void ConstructGraphView()
     {
         _graphView = new DialogueGraphView(this)
@@ -78,6 +38,17 @@ public class DialogueGraph : EditorWindow
         rootVisualElement.Add(_graphView);
     }
 
+    private void GenerateMiniMap()
+    {
+        var miniMap = new MiniMap { };
+        miniMap.IsSelectable();
+        miniMap.IsMovable();
+        // 10 px offset from left side
+        var cords = _graphView.contentViewContainer.WorldToLocal(new Vector2(this.maxSize.x - 2800, 30));
+        miniMap.SetPosition(new Rect(0, cords.y, 200, 140));
+        _graphView.Add(miniMap);
+    }
+
     private void GenerateToolBar()
     {
         var toolBar = new Toolbar();
@@ -87,6 +58,18 @@ public class DialogueGraph : EditorWindow
         filenameTextField.MarkDirtyRepaint();
         filenameTextField.RegisterValueChangedCallback(evt => _fileName = evt.newValue);
         toolBar.Add(filenameTextField);
+
+        var DialogueContainerField = new ObjectField()
+        {
+            label = "Dialogue Container",
+            objectType = typeof(DialogueContainer),
+            allowSceneObjects = false,            
+        };
+        DialogueContainerField.RegisterValueChangedCallback(evt =>
+        {
+            _fileName = evt.newValue.name;
+        });
+        toolBar.Add(DialogueContainerField);
 
         toolBar.Add(new Button( () => RequestDataOperation(true)) { text = "SaveData" });
         toolBar.Add(new Button(() => RequestDataOperation(false)) { text = "LoadData" });
@@ -118,5 +101,32 @@ public class DialogueGraph : EditorWindow
     private void OnDisable()
     {
         rootVisualElement.Remove(_graphView);
+    }
+
+    private void GenerateBlackBoard()
+    {
+        var blackBoard = new Blackboard(_graphView);
+        blackBoard.Add(new BlackboardSection { title = "Exposed Properties" });
+
+        blackBoard.addItemRequested = _blackboard =>
+        {
+            _graphView.AddPropertyToBlackboard(new ExposedProperty());
+        };
+        blackBoard.editTextRequested = (blackboard1, element, newValue) =>
+        {
+            var oldPropertyName = ((BlackboardField)element).text;
+            if (_graphView.ExposedProperties.Any(x => x.PropertyName == newValue))
+            {
+                EditorUtility.DisplayDialog("Error", "This property name already exist. Choose another one", "OK");
+            }
+
+            var propertyIndex = _graphView.ExposedProperties.FindIndex(x => x.PropertyName == oldPropertyName);
+            _graphView.ExposedProperties[propertyIndex].PropertyName = newValue;
+            ((BlackboardField)element).text = newValue;
+        };
+
+        blackBoard.SetPosition(new Rect(10, 30, 200, 300));
+        _graphView.Add(blackBoard);
+        _graphView.BlackBoard = blackBoard;
     }
 }

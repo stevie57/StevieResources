@@ -5,7 +5,9 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
+using UnityEngine.Playables;
 using UnityEngine.UIElements;
+using System.IO;
 
 public class GraphSaveUtility 
 {
@@ -30,7 +32,7 @@ public class GraphSaveUtility
         SaveExposedProperties(dialogueContainer);
 
         // Check if file path exists. If it doesn't then create it.
-        if (!AssetDatabase.IsValidFolder($"Assets/Resources/{fileName}.asset"))
+        if (!AssetDatabase.IsValidFolder($"Assets/Resources"))
         {
             AssetDatabase.CreateFolder("Assets", "Resources");
         }
@@ -41,38 +43,53 @@ public class GraphSaveUtility
 
     private void SaveExposedProperties(DialogueContainer dialogueContainer)
     {
-        dialogueContainer.ExposedProperties.AddRange(_targetGraphView.ExposedProperties);
+        if(_targetGraphView.BlackBoard != null)
+            dialogueContainer.ExposedProperties.AddRange(_targetGraphView.ExposedProperties);
     }
 
     private bool SaveNodes(DialogueContainer dialogueContainer)
     {
+        // save edges
         if (!Edges.Any()) return false;
-
-
-        Edge[] connectedPorts = Edges.Where(x => x.input.node != null).ToArray();
-        for (int i = 0; i < connectedPorts.Length; i++)
+        var connectedSockets = Edges.Where(x => x.input.node != null).ToArray();
+        for (var i = 0; i < connectedSockets.Length; i++)
         {
-            var outputNode = connectedPorts[i].output.node as DialogueNode;
-            var inputNode = connectedPorts[i].input.node as DialogueNode;
-
-            dialogueContainer.NodeLinks.Add(new NodeLinkData()
+            var outputNode = (connectedSockets[i].output.node as DialogueNode);
+            var inputNode = (connectedSockets[i].input.node as DialogueNode);
+            dialogueContainer.NodeLinks.Add(new NodeLinkData
             {
                 BaseNodeGUID = outputNode.GUID,
-                PortName = connectedPorts[i].output.name,
-                TargetNodeGUID = inputNode.GUID,
+                PortName = connectedSockets[i].output.portName,
+                TargetNodeGUID = inputNode.GUID
             });
         }
+
+
+        //Edge[] connectedPorts = Edges.Where(x => x.input.node != null).ToArray();
+        //for (int i = 0; i < connectedPorts.Length; i++)
+        //{
+        //    var outputNode = connectedPorts[i].output.node as DialogueNode;
+        //    var inputNode = connectedPorts[i].input.node as DialogueNode;
+
+        //    dialogueContainer.NodeLinks.Add(new NodeLinkData()
+        //    {
+        //        BaseNodeGUID = outputNode.GUID,
+        //        PortName = connectedPorts[i].output.name,
+        //        TargetNodeGUID = inputNode.GUID,
+        //    });
+        //}
 
         foreach (var dialogueNode in Nodes.Where(node => !node.EntryPoint))
         {
-            dialogueContainer.DialogueNodeData.Add(new DialogueNodeData()
+            var newNode = new DialogueNodeData()
             {
                 NodeGUID = dialogueNode.GUID,
-                DialogueText = dialogueNode.DialogueText,
-                Position = dialogueNode.GetPosition().position
-            });
-        }
-
+                DialogueTitle = dialogueNode.DialogueTitle,
+                Position = dialogueNode.GetPosition().position,
+                SavedTimelineAssetName = dialogueNode.TimelineAsset.name
+            };
+            dialogueContainer.DialogueNodeData.Add(newNode);
+        }      
         return true;
     }
 
@@ -88,11 +105,13 @@ public class GraphSaveUtility
         ClearGraph();
         CreateNodes();
         ConnectNodes();
-        CreateExposedProperties();
+        //CreateExposedProperties();
     }
 
     private void CreateExposedProperties()
     {
+        if (_targetGraphView.BlackBoard == null) return;
+
         _targetGraphView.ClearBlackBoardandExposedProperty();
 
         foreach(var exposedProperty in _containerCache.ExposedProperties)
@@ -115,16 +134,28 @@ public class GraphSaveUtility
         }
     }
 
+    [ExecuteInEditMode]
     private void CreateNodes()
     {
         foreach(var nodeData in _containerCache.DialogueNodeData)
         {
-            var tempNode = _targetGraphView.CreateDialogueNode(nodeData.DialogueText , Vector2.zero);
+            var tempNode = _targetGraphView.CreateDialogueNode(nodeData.DialogueTitle , nodeData.Position);
             tempNode.GUID = nodeData.NodeGUID;
-            _targetGraphView.AddElement(tempNode);
+
+            if(File.Exists(Application.dataPath + $"/Resources/Timelines/{nodeData.SavedTimelineAssetName}.playable"))
+            {
+                tempNode.TimelineAsset = Resources.Load<PlayableAsset>($"Timelines/{nodeData.SavedTimelineAssetName}");
+                tempNode.TimelineObjectField.value = tempNode.TimelineAsset;
+                _targetGraphView.AddElement(tempNode);
+            }
+            else
+            {
+                string path = Application.dataPath + $"/Resources/Timelines/{nodeData.SavedTimelineAssetName}.playable";
+                Debug.Log($"timeline asset doesnt exist {path}");
+            }
 
             var nodePorts = _containerCache.NodeLinks.Where(x => x.BaseNodeGUID == nodeData.NodeGUID).ToList();
-            nodePorts.ForEach(x => _targetGraphView.AddChoicePort(tempNode, nodeData.DialogueText));
+            nodePorts.ForEach(x => _targetGraphView.AddChoicePort(tempNode, x.PortName));
         }
     }
 
@@ -133,18 +164,32 @@ public class GraphSaveUtility
         for (int i = 0; i < Nodes.Count; i++)
         {
             // all connections to Nodes[i]
-            var connections = _containerCache.NodeLinks.Where(x => x.BaseNodeGUID == Nodes[i].GUID).ToList();
+            var currentNode = Nodes[i];
+            var connections = _containerCache.NodeLinks.Where(x => x.BaseNodeGUID == currentNode.GUID).ToList();
+            Debug.Log($"Currnet Node Name is {currentNode.title} and I have {connections.Count} connection");
+
             if (connections.Count == 0) continue;
             for (int j = 0; j < connections.Count; j++)
             {
                 var targetNodeGuid = connections[j].TargetNodeGUID;
                 var targetNode = Nodes.First(x => x.GUID == targetNodeGuid);
-                LinkNodes(Nodes[i].outputContainer[j].Q<Port>(), (Port)targetNode.inputContainer[0]);
-
+                Port outputPort = currentNode.outputContainer[j].Q<Port>();
+                Port inputPort = (Port)targetNode.inputContainer[0];
+                if (outputPort != null)
+                {
+                    LinkNodes(outputPort, inputPort);
+                }
+                else
+                {
+                    Debug.Log($"I am unable to connect {currentNode.title} for connection {j}");
+                    Debug.Log($"TargetnodeGuid is {targetNodeGuid}");
+                    Debug.Log($"Target node is {targetNode}");                    
+                }
                 targetNode.SetPosition(new Rect(_containerCache.DialogueNodeData.First(x => x.NodeGUID == targetNodeGuid).Position, _targetGraphView.defaultNodeSize));
             }
         }
     }
+
     private void LinkNodes(Port output, Port input)
     {
         var tempEdge = new Edge
