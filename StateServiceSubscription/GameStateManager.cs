@@ -6,12 +6,12 @@ using System;
 
 public class GameStateManager : MonoBehaviour
 {
-    public static GameStateManager Instance;
+    public static GameStateManager Instance; // Make sure there is only one game state manager
 
-    private Dictionary<Type, AGameState> _statesInstanceDictionary = new Dictionary<Type, AGameState>(); 
-    private Dictionary<Type, List<object>> _gameStatesServicesDictionary = new Dictionary<Type, List<object>>();
+    private Dictionary<Type, AGameState> _statesInstanceDictionary = new Dictionary<Type, AGameState>();            // Dict of all game states created at run time
+    private Dictionary<Type, List<object>> _gameStatesServicesDictionary = new Dictionary<Type, List<object>>();    // Dict of all services listening to each game state
 
-    AGameState _currentState;
+    AGameState _currentState;   // current game state
 
     private void Awake()
     {
@@ -23,17 +23,23 @@ public class GameStateManager : MonoBehaviour
         _currentState = _statesInstanceDictionary[typeof(GameState_Setup)];
     }
 
+    // Create instances of each game state and add to the State Dictionary
     private void CreateStateDictionary()
     {
+        // Get all classess that inherit from AGameState at run time 
         var gameStates = Assembly.GetAssembly(typeof(AGameState)).GetTypes();
 
         foreach(Type state in gameStates)
         {
+            // Make sure it is a Class, that it is not Abstract class and that it's inherited from AGameState
             if (state.IsClass && !state.IsAbstract && state.IsSubclassOf(typeof(AGameState)))
             {
+            
+                //Create a empty List that can be populated later for services who are listening to this specific gameState 
                 List<object> servicesList = new List<object>();
                 _gameStatesServicesDictionary[state] = servicesList;
-
+                
+                // Create an instance of the gameState type. 
                 AGameState stateInstance = Activator.CreateInstance(state) as AGameState;
                 _statesInstanceDictionary[state] = stateInstance;
             }
@@ -43,16 +49,20 @@ public class GameStateManager : MonoBehaviour
     public void Bind(object service)
     {
         AddService(service);
-        SetupService(service, _currentState);
+        SetupService(service, _currentState); // SetupService is and checks if the current state is where its supposed to set up
     }
 
     private void AddService(object service)
     {
         Type serviceType = service.GetType();
+        
+        // All systems that want to subscribe as a service to a gamestate implement the IStateListener Interface. 
         foreach (Type interfaceType in serviceType.GetInterfaces())
         {
+            //Using Interface to filter and the implementation to find out which specific gameState the service is interested in.
             if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IStateListener<>))
             {
+                // The implementation should only have one gameState generic
                 var argumentsArray = interfaceType.GenericTypeArguments;
                 Type targetGameState = argumentsArray[0];
 
@@ -106,6 +116,7 @@ public class GameStateManager : MonoBehaviour
                 {
                     foreach (MethodInfo method in serviceType.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
                     {
+                        // Interface requires the implementation of Setu
                         if (method.Name == "Setup")
                         {
                             var methodParamaters = method.GetParameters();
